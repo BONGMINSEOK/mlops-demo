@@ -11,7 +11,7 @@ env:
   MLFLOW_S3_ENDPOINT_URL: http://minio.mlops.svc.cluster.local:9000
   AWS_ACCESS_KEY_ID: minioadmin
   AWS_SECRET_ACCESS_KEY: minioadmin123
-  IMAGE: ghcr.io/${{ github.repository_owner }}/mlops-demo
+  IMAGE: ghcr.io/bongminseok/mlops-demo
 
 jobs:
   train:
