@@ -24,7 +24,6 @@ spec:
         - {name: LABELS, value: "self-hosted,k3s"}
         - {name: RUNNER_WORKDIR, value: "/tmp/runner/work"}
         - {name: DISABLE_AUTO_UPDATE, value: "true"}
-        - {name: EPHEMERAL, value: "false"}
         - {name: DOCKER_HOST, value: "tcp://localhost:2375"}
         - name: ACCESS_TOKEN
           valueFrom: {secretKeyRef: {name: gh-runner-token, key: token}}
