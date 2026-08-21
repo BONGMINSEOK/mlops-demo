@@ -19,9 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
-        run: pip install --no-cache-dir -r requirements.txt
+        run: pip3 install --no-cache-dir -r requirements.txt
       - name: Train and register model
-        run: python train.py
+        run: python3 train.py
 
   build-and-push:
     needs: train
