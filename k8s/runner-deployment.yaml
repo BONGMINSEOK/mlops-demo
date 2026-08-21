@@ -28,9 +28,16 @@ spec:
         - {name: DOCKER_HOST, value: "tcp://localhost:2375"}
         - name: ACCESS_TOKEN
           valueFrom: {secretKeyRef: {name: gh-runner-token, key: token}}
+        - {name: SSL_CERT_FILE, value: "/etc/ssl/certs/ca-certificates.crt"}
+        - {name: REQUESTS_CA_BUNDLE, value: "/etc/ssl/certs/ca-certificates.crt"}
+        - {name: PIP_CERT, value: "/etc/ssl/certs/ca-certificates.crt"}
+        - {name: CURL_CA_BUNDLE, value: "/etc/ssl/certs/ca-certificates.crt"}
+        - {name: GIT_SSL_CAINFO, value: "/etc/ssl/certs/ca-certificates.crt"}
+        - {name: NODE_EXTRA_CA_CERTS, value: "/etc/ssl/certs/ca-certificates.crt"}
         volumeMounts:
         - {name: work, mountPath: /tmp/runner/work}
         - {name: k3s-bin, mountPath: /usr/local/bin/k3s, readOnly: true}
+        - {name: ca-bundle, mountPath: /etc/ssl/certs/ca-certificates.crt, subPath: ca-certificates.crt}
       - name: dind
         image: docker:dind
         securityContext: {privileged: true}
@@ -38,8 +45,11 @@ spec:
         - {name: DOCKER_TLS_CERTDIR, value: ""}
         volumeMounts:
         - {name: docker-graph, mountPath: /var/lib/docker}
+        - {name: ca-bundle, mountPath: /etc/ssl/certs/ca-certificates.crt, subPath: ca-certificates.crt}
       volumes:
       - {name: work, emptyDir: {}}
       - {name: docker-graph, emptyDir: {}}
       - name: k3s-bin
         hostPath: {path: /usr/local/bin/k3s, type: File}
+      - name: ca-bundle
+        configMap: {name: ca-bundle}
