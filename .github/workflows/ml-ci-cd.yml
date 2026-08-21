@@ -1,0 +1,63 @@
+name: ML CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  MLFLOW_TRACKING_URI: http://mlflow.mlops.svc.cluster.local:5000
+  MLFLOW_S3_ENDPOINT_URL: http://minio.mlops.svc.cluster.local:9000
+  AWS_ACCESS_KEY_ID: minioadmin
+  AWS_SECRET_ACCESS_KEY: minioadmin123
+  IMAGE: ghcr.io/${{ github.repository_owner }}/mlops-demo
+
+jobs:
+  train:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: pip install --no-cache-dir -r requirements.txt
+      - name: Train and register model
+        run: python train.py
+
+  build-and-push:
+    needs: train
+    if: github.ref == 'refs/heads/main'
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure docker CLI is available
+        run: command -v docker || (apt-get update && apt-get install -y docker.io)
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push serving image
+        run: |
+          docker build -f serve/Dockerfile -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest
+
+  deploy:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    runs-on: self-hosted
+    environment: production
+    steps:
+      - name: Roll out new image
+        run: |
+          export KUBECONFIG=/tmp/kubeconfig-$$
+          /usr/local/bin/k3s kubectl config set-cluster in-cluster --server=https://kubernetes.default.svc --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          /usr/local/bin/k3s kubectl config set-credentials sa --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+          /usr/local/bin/k3s kubectl config set-context in-cluster --cluster=in-cluster --user=sa --namespace=mlops
+          /usr/local/bin/k3s kubectl config use-context in-cluster
+          /usr/local/bin/k3s kubectl set image deployment/iris-serving iris-serving=$IMAGE:${{ github.sha }} -n mlops
+          /usr/local/bin/k3s kubectl rollout status deployment/iris-serving -n mlops --timeout=120s
+          rm -f "$KUBECONFIG"

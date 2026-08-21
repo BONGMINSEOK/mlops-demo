@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gh-runner
+  namespace: mlops
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: gh-runner}
+  template:
+    metadata:
+      labels: {app: gh-runner}
+    spec:
+      serviceAccountName: gh-runner
+      containers:
+      - name: runner
+        image: myoung34/github-runner:latest
+        env:
+        - {name: REPO_URL, value: "https://github.com/BONGMINSEOK/mlops-demo"}
+        - {name: RUNNER_SCOPE, value: "repo"}
+        - {name: RUNNER_NAME, value: "k3s-mlops-runner"}
+        - {name: LABELS, value: "self-hosted,k3s"}
+        - {name: RUNNER_WORKDIR, value: "/tmp/runner/work"}
+        - {name: DISABLE_AUTO_UPDATE, value: "true"}
+        - {name: EPHEMERAL, value: "false"}
+        - {name: DOCKER_HOST, value: "tcp://localhost:2375"}
+        - name: ACCESS_TOKEN
+          valueFrom: {secretKeyRef: {name: gh-runner-token, key: token}}
+        volumeMounts:
+        - {name: work, mountPath: /tmp/runner/work}
+        - {name: k3s-bin, mountPath: /usr/local/bin/k3s, readOnly: true}
+      - name: dind
+        image: docker:dind
+        securityContext: {privileged: true}
+        env:
+        - {name: DOCKER_TLS_CERTDIR, value: ""}
+        volumeMounts:
+        - {name: docker-graph, mountPath: /var/lib/docker}
+      volumes:
+      - {name: work, emptyDir: {}}
+      - {name: docker-graph, emptyDir: {}}
+      - name: k3s-bin
+        hostPath: {path: /usr/local/bin/k3s, type: File}
